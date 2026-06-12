@@ -1,0 +1,9 @@
+{
+  "seq_len": 30,
+  "input_dim": 16,
+  "hidden_dim": 48,
+  "latent_dim": 48,
+  "num_layers": 3,
+  "num_classes": 4,
+  "embed_dim": 8
+}

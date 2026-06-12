@@ -1,0 +1,53 @@
+dataset: FD001
+
+rul_cap: 125
+window_size: 30
+stride: 1
+
+drop_sensors:
+  - s1
+  - s5
+  - s6
+  - s10
+  - s16
+  - s18
+  - s19
+  - op3        # constant in FD001 (always 100.0)
+
+global_scale_features:
+  - s3         # near-zero per-engine — scaled globally to preserve variance
+
+feature_cols:
+  - op1
+  - op2
+  - s2
+  - s3
+  - s4
+  - s7
+  - s8
+  - s9
+  - s11
+  - s12
+  - s13
+  - s14
+  - s15
+  - s17
+  - s20
+  - s21
+
+input_dim: 16
+
+paths:
+  raw: data/raw
+  processed: data/processed/FD001
+  synthetic: data/synthetic
+
+fault_classes:
+  C0: [100, 999]   # healthy
+  C1: [50,  100]   # early degradation
+  C2: [10,   50]   # advanced fault
+  C3: [0,    10]   # imminent failure
+
+physics_monotone:
+  increasing: [s4]
+  decreasing: [s3, s7, s11]
