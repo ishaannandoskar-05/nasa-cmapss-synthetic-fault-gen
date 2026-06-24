@@ -1,168 +1,235 @@
-# NASA CMAPSS Synthetic Fault Generation — Implementation Summary
+# NASA CMAPSS Synthetic Fault Generation - Implementation
 
 ## Project Goal
-Generate realistic synthetic fault data for supervised classifier training
-using a Conditional GAN on NASA CMAPSS turbofan engine sensor data,
-since no explicit fault labels exist in the raw dataset.
 
----
+This project builds a synthetic-data-assisted fault classification pipeline for
+NASA CMAPSS turbofan engine data. Raw CMAPSS files provide degradation
+trajectories and RUL labels, but not explicit fault classes. The project maps
+RUL into four degradation classes, trains Conditional GANs to balance minority
+fault states, and trains a 1D-CNN classifier for fault-state prediction.
+
+The repository now also includes a Flask API and React dashboard for local
+inference and visualization.
 
 ## Dataset
-- **Source:** NASA CMAPSS (Commercial Modular Aero-Propulsion System Simulation)
-- **Subset used:** FD001 (single fault mode, 1 operating condition)
-- **Files:** train_FD001.txt, test_FD001.txt, RUL_FD001.txt
-- **Sensors:** 21 raw sensors + 3 operational settings per cycle
-- **Engines:** 100 training engines, variable length run-to-failure cycles
 
----
+**Source:** NASA CMAPSS turbofan degradation simulation
 
-## Phase 1 — Data Ingestion & EDA
-**Notebook:** `01_data_quality_and_rul.ipynb`
-**Script:** `src/ingestion/load_data.py`
+| Subset | Fault modes | Operating conditions | Train engines | Test engines |
+|--------|-------------|----------------------|---------------|--------------|
+| FD001  | 1           | 1                    | 100           | 100          |
+| FD002  | 1           | 6                    | 260           | 259          |
+| FD003  | 2           | 1                    | 100           | 100          |
+| FD004  | 2           | 6                    | 249           | 248          |
 
-- Loaded raw CMAPSS txt files using whitespace-separated parser
-- Assigned column names: engine_id, cycle, op1-3, s1-s21
-- Computed RUL (Remaining Useful Life) per engine by counting backwards from end of life
-- Saved `train_with_rul.csv` to `data/processed/FD001/`
-- Identified 7 near-constant sensors with low variance:
-  s1, s5, s6, s10, s16, s18, s19
+Each raw row contains `engine_id`, `cycle`, three operating settings, and 21
+sensor readings.
 
----
+## Active Feature Set
 
-## Phase 2 — Preprocessing
-**Notebook:** `02_preprocessing.ipynb`
-**Script:** `src/preprocessing/preprocess.py`
+The active model uses 16 normalized features:
 
-- Dropped 7 flat sensors → 14 remaining features (op1-3 + 11 sensors)
-- Applied MinMaxScaler per engine unit (not globally) to prevent leakage
-- Capped RUL at 125 cycles (piecewise linear target)
-- Applied sliding window: W=30 cycles, stride=1
-- Output shape: X_train.npy (N, 30, 17), y_train.npy (N,)
+```text
+op1, op2,
+s2, s3, s4, s7, s8, s9,
+s11, s12, s13, s14, s15, s17, s20, s21
+```
 
-> Note: INPUT_DIM=17 (14 sensors + 3 op conditions). Scaler not saved to disk —
-> needs fixing before Phase 8 test evaluation.
+Seven low-variance sensors are dropped: `s1`, `s5`, `s6`, `s10`, `s16`, `s18`,
+and `s19`. `op3` is also excluded from the active FD001-style feature pipeline
+because it is constant for that subset.
 
----
+## Fault Labels
 
-## Phase 3 — Physics-Based Fault Labeling
-**Notebook:** `03_physics_labels.ipynb`
+RUL is capped at 125 cycles and mapped into four classes:
 
-Mapped RUL zones to degradation severity classes based on turbofan physics:
+| Class | RUL range | Meaning |
+|-------|-----------|---------|
+| C0    | `> 100`   | Healthy |
+| C1    | `51-100`  | Early wear |
+| C2    | `11-50`   | Advanced fault |
+| C3    | `0-10`    | Imminent failure |
 
-| Class | RUL Range | Degradation State      |
-|-------|-----------|------------------------|
-| C0    | > 100     | Healthy                |
-| C1    | 50–100    | Early wear             |
-| C2    | 10–50     | Advanced fault         |
-| C3    | < 10      | Imminent failure       |
+The helper implementation lives in `src/phase3_physics_labels/labeler.py`.
 
-- Class distribution: C0=43%, C1=28%, C2=23%, C3=6%
-- Verified physics monotonicity on real data (T50↑, Nf↓, Ps30↓, phi↓)
-- Saved `labels_train.npy` and `class_distribution.csv`
+## Notebook Pipeline
 
----
+| Phase | Notebook | Purpose | Status |
+|-------|----------|---------|--------|
+| 1 | `01_data_quality_and_rul.ipynb` | Load CMAPSS and compute train RUL | Done |
+| 2 | `02_preprocessing.ipynb` | Normalize, cap RUL, create windows | Done |
+| 3 | `03_physics_labels.ipynb` | Assign degradation classes | Done |
+| 4 | `04_model_architecture.ipynb` | Define model architecture | Done |
+| 5 | `05_training.ipynb` | TimeGAN experiment | Deprecated |
+| 5b | `05b_training_cgan.ipynb` | FD001 CGAN training | Done |
+| 6 | `06_synthetic_fault_generation.ipynb` | Generate balanced synthetic FD001 data | Done |
+| 7 | `07_validation.ipynb` | Validate synthetic data | Done |
+| 8 | `08_classifier.ipynb` | Train FD001-only classifier | Done |
+| 9 | `09_cross_dataset_eval.ipynb` | Test FD001 model across subsets | Done |
+| 10 | `10_multi_subset_preprocessing.ipynb` | Process FD002-FD004 | Done |
+| 11 | `11_multi_subset_cgan_colab.ipynb` | Multi-subset CGAN training | Done |
+| 12 | `12_multi_subset_generation.ipynb` | Build unified balanced dataset | Done |
+| 13 | `13_unified_classifier_colab.ipynb` | Train unified classifier | Done |
 
-## Phase 4 — Model Architecture (TimeGAN)
-**Notebook:** `04_model_architecture.ipynb`
+## Phase Summary
 
-Defined Conditional TimeGAN with 5 components:
+### Data Ingestion
 
-| Component     | Role                                          |
-|---------------|-----------------------------------------------|
-| Embedder      | Real sequences → latent space (GRU)           |
-| Recovery      | Latent space → reconstructed sequences (GRU)  |
-| Supervisor    | Enforces temporal coherence in latent space   |
-| Generator     | Noise + class embedding → latent sequences    |
-| Discriminator | Classifies real vs synthetic latent sequences |
+`src/ingestion/load_data.py` loads whitespace-separated CMAPSS train/test files,
+assigns stable column names, loads RUL files, and prints basic dataset summaries.
 
-- Conditioning: class embedding (Embedding layer, embed_dim=8)
-- Saved architecture config to `configs/model_config.json`
+### Preprocessing
 
----
+`src/preprocessing/preprocess.py` caps RUL, applies per-engine scaling, creates
+30-cycle sliding windows, and saves NumPy arrays. The more complete notebook
+pipeline saves the scaler artifacts and feature configuration used later by
+validation, classifier training, and the app.
 
-## Phase 5 — Training (TimeGAN + CGAN)
-**Notebooks:** `05_training_timegan.ipynb`, `05b_training_cgan.ipynb`
+Window shape:
 
-### TimeGAN Training (3-phase)
-- Phase 1: Autoencoder pretraining (100 epochs)
-- Phase 2: Supervisor pretraining (100 epochs)
-- Phase 3: Joint GAN training (300 epochs, grad clipping=1.0)
-- HIDDEN_DIM=48, LATENT_DIM=48, NUM_LAYERS=3
-- **Result:** Mode collapse — generator output visually flat/collapsed,
-  discriminative score=1.0, MMD poor across all classes
+```text
+(num_windows, 30, 16)
+```
 
-### Architecture iterations attempted:
-1. Sigmoid → Tanh in Embedder/Supervisor/Generator proj layers
-2. noise_scale increased 0.1 → 0.3 in Generator
-3. Recovery Sigmoid → Linear + clamp(0,1)
-4. Reconstruction loss weight reduced 10.0 → 5.0
-5. Moments loss gamma increased 1.0 → 2.0
+### Synthetic Data Generation
 
-### CGAN (Direct sensor space — current active model)
-- Single training loop (500 epochs)
-- Generator: FC(noise+embed) → GRU → FC → Sigmoid
-- Discriminator: GRU(sequence+embed) → FC → logit
-- Feature matching loss added (weight=10.0) to prevent mode collapse
-- LR_G=1e-4, LR_D=2e-4, betas=(0.5, 0.999)
-- D trained 1x, G trained 2x per batch
-- Checkpoints saved to `data/processed/FD001/checkpoints_cgan/`
+TimeGAN was attempted first but deprecated because it collapsed on this sensor
+sequence task. The active approach is a direct sensor-space Conditional GAN:
 
----
+- Generator input: random noise plus class embedding
+- Generator backbone: GRU sequence generator
+- Discriminator backbone: GRU sequence discriminator
+- Output: normalized 30-step, 16-feature sensor windows
 
-## Phase 6 — Synthetic Fault Generation
-**Notebook:** `06_synthetic_fault_generation.ipynb`
+Separate CGANs were trained for FD001, FD002, FD003, and FD004. FD002 and FD004
+use a discriminator-throttled variant to handle six operating conditions.
 
-- Generated synthetic windows per class to balance dataset
-- Target count = max(real class count) = C0 count (7633)
-- C0: 0 generated (already majority), C1/C2/C3: oversampled
-- Severity interpolation: C1↔C2 and C2↔C3 midpoints (500 each)
-- Combined real + synthetic into balanced dataset
-- Saved:
-  - `data/synthetic/GAN/synth_X.npy`
-  - `data/synthetic/GAN/synth_labels.npy`
-  - `data/synthetic/GAN/interp_C1_C2.npy`
-  - `data/synthetic/GAN/interp_C2_C3.npy`
-  - `data/processed/FD001/X_balanced.npy`
-  - `data/processed/FD001/labels_balanced.npy`
+### Validation
 
----
+Validation uses MMD, KS tests, PCA/t-SNE plots, monotonicity checks, and a
+discriminative score. FD001 CGAN outputs achieved good MMD but weak KS pass rate,
+with a known cross-sensor correlation gap.
 
-## Phase 7 — Validation (TimeGAN results)
-**Notebook:** `07_validation.ipynb`
+### Classifier
 
-| Metric              | Result  | Target        | Verdict     |
-|---------------------|---------|---------------|-------------|
-| MMD C1              | 0.129   | < 0.05        | POOR        |
-| MMD C2              | 0.712   | < 0.05        | POOR        |
-| MMD C3              | 0.826   | < 0.05        | POOR        |
-| KS pass rate        | 5.9%    | > 50%         | POOR        |
-| Discriminative score| 1.000   | ~0.50         | POOR        |
-| Monotonicity        | 1/4     | 4/4           | PARTIAL     |
+The classifier is a 1D-CNN over `(time, features)` windows.
 
-- PCA/t-SNE: real and synthetic form completely separate clusters
-- Decision: TimeGAN rejected, CGAN adopted
+Unified classifier architecture:
 
-> Phase 7 to be re-run after CGAN Phase 5b + Phase 6 completion.
+- Conv1d `16 -> 64`
+- Conv1d `64 -> 128`
+- Conv1d `128 -> 256`
+- Adaptive average pooling
+- Fully connected classifier `2048 -> 512 -> 128 -> 4`
+- Dropout in dense layers
 
----
+The trained model artifact is available at:
 
-## Phases Remaining
+```text
+data/processed/unified/unified_classifier_1dcnn.pt
+turbofan_app/backend/model_artifacts/unified_classifier_1dcnn.pt
+```
 
-| Phase | Notebook                  | Status        |
-|-------|---------------------------|---------------|
-| 5b    | 05b_training_cgan.ipynb   | In progress   |
-| 6     | 06_synthetic_...ipynb     | Needs rerun   |
-| 7     | 07_validation.ipynb       | Needs rerun   |
-| 8     | 08_classifier.ipynb       | Not started   |
-| 9     | 09_cross_dataset_eval.ipynb| Not started  |
+## Reported Results
 
----
+### FD001-only Classifier
+
+| Metric | Value |
+|--------|-------|
+| Accuracy | 0.5600 |
+| Weighted F1 | 0.5574 |
+| RUL RMSE | 36.54 |
+| C3 recall | 1.00 |
+
+### Unified Classifier
+
+| Subset | Accuracy | F1 | RMSE | C3 recall |
+|--------|----------|----|------|-----------|
+| FD001 | 0.4800 | 0.479 | 42.70 | 0.57 |
+| FD002 | 0.6178 | 0.615 | 36.36 | 0.68 |
+| FD003 | 0.4900 | 0.467 | 46.41 | 0.67 |
+| FD004 | 0.5403 | 0.531 | 45.91 | 0.57 |
+
+The unified classifier improves cross-dataset behavior substantially compared
+with the FD001-only model, while trading off some FD001 specialization.
+
+## Application
+
+The local demo app is under `turbofan_app/`.
+
+### Backend
+
+`turbofan_app/backend/app.py` is a Flask API that loads the unified 1D-CNN and
+serves:
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/health` | GET | Model/API health |
+| `/api/classes` | GET | Class metadata and feature list |
+| `/api/predict` | POST | CSV upload inference |
+| `/api/sample/<class_id>` | GET | Demo sample response for class `0-3` |
+
+The backend expects CSV uploads with the 16 active feature columns. Extra columns
+are ignored.
+
+### Frontend
+
+`turbofan_app/frontend/` is a React/Vite dashboard with:
+
+- CSV upload
+- API health indicator
+- class probability display
+- estimated RUL display
+- interactive Three.js turbofan viewer
+- highlighted fault zones for C1-C3 predictions
+
+The frontend currently uses `http://localhost:5000/api` as the API base URL.
+
+## Repository Structure
+
+```text
+nasa_gan_turbo_fan_engine/
+  BUGS.md
+  IMPLEMENTATION.md
+  README.md
+  configs/
+    data_config.yaml
+    model_config.json
+  data/
+    raw/
+    processed/
+    synthetic/
+  notebooks/
+    01_data_quality_and_rul.ipynb
+    ...
+    13_unified_classifier_colab.ipynb
+  reports/
+    figures/
+  src/
+    ingestion/
+    preprocessing/
+    phase3_physics_labels/
+  tests/
+    engine_*.csv
+  turbofan_app/
+    backend/
+    frontend/
+```
+
+## Known Limitations
+
+- Synthetic windows match marginal distributions better than joint
+  cross-sensor relationships.
+- Upload-time scaling in the Flask API can fit a scaler on the uploaded window
+  when full production scalers are unavailable.
+- Training notebooks use fixed epoch counts; early stopping is still pending.
+- The app is a local demo, not a hardened production deployment.
 
 ## Tech Stack
-- Python 3.13
-- PyTorch (GAN training)
-- scikit-learn (preprocessing, discriminative score)
-- scipy (KS test)
-- pandas / numpy (data handling)
-- matplotlib (visualization)
-- Jupyter Notebooks
+
+- Python
+- pandas, NumPy, scikit-learn, SciPy, joblib
+- PyTorch
+- Jupyter notebooks and Google Colab for training
+- Flask and Flask-CORS
+- React, Vite, Three.js, lucide-react

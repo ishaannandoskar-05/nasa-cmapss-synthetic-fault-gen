@@ -1,0 +1,413 @@
+{
+  "total": 81,
+  "passed": 77,
+  "failed": 4,
+  "pass_rate_pct": 95.06,
+  "results": [
+    {
+      "name": "FD001: test file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\test_FD001.txt"
+    },
+    {
+      "name": "FD001: RUL file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\RUL_FD001.txt"
+    },
+    {
+      "name": "FD001: test data loads",
+      "passed": true,
+      "message": "13096 rows"
+    },
+    {
+      "name": "FD001: no NaNs in raw test data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: has all FEATURE_COLS",
+      "passed": true,
+      "message": "missing: []"
+    },
+    {
+      "name": "FD001: RUL count matches engine count",
+      "passed": true,
+      "message": "RUL rows=100, engines=100"
+    },
+    {
+      "name": "FD001: global_scaler.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: engine_scalers.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: global_scaler is MinMaxScaler instance",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: engine_scalers is non-empty dict",
+      "passed": true,
+      "message": "100 engines"
+    },
+    {
+      "name": "FD001: scaled output same row count as input",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: scaled features within [-0.05, 1.05] tolerance",
+      "passed": false,
+      "message": "min=-1.3261, max=5.3354"
+    },
+    {
+      "name": "FD001: window shape correct",
+      "passed": true,
+      "message": "got (100, 30, 16)"
+    },
+    {
+      "name": "FD001: no NaNs in windowed data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: all class labels in {0,1,2,3}",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: class boundaries match RUL thresholds",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: test file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\test_FD002.txt"
+    },
+    {
+      "name": "FD002: RUL file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\RUL_FD002.txt"
+    },
+    {
+      "name": "FD002: test data loads",
+      "passed": true,
+      "message": "33991 rows"
+    },
+    {
+      "name": "FD002: no NaNs in raw test data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: has all FEATURE_COLS",
+      "passed": true,
+      "message": "missing: []"
+    },
+    {
+      "name": "FD002: RUL count matches engine count",
+      "passed": true,
+      "message": "RUL rows=259, engines=259"
+    },
+    {
+      "name": "FD002: global_scaler.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: engine_scalers.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: global_scaler is MinMaxScaler instance",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: engine_scalers is non-empty dict",
+      "passed": true,
+      "message": "260 engines"
+    },
+    {
+      "name": "FD002: scaled output same row count as input",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: scaled features within [-0.05, 1.05] tolerance",
+      "passed": false,
+      "message": "min=-0.0635, max=1.2982"
+    },
+    {
+      "name": "FD002: window shape correct",
+      "passed": true,
+      "message": "got (259, 30, 16)"
+    },
+    {
+      "name": "FD002: no NaNs in windowed data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: all class labels in {0,1,2,3}",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: class boundaries match RUL thresholds",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: test file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\test_FD003.txt"
+    },
+    {
+      "name": "FD003: RUL file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\RUL_FD003.txt"
+    },
+    {
+      "name": "FD003: test data loads",
+      "passed": true,
+      "message": "16596 rows"
+    },
+    {
+      "name": "FD003: no NaNs in raw test data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: has all FEATURE_COLS",
+      "passed": true,
+      "message": "missing: []"
+    },
+    {
+      "name": "FD003: RUL count matches engine count",
+      "passed": true,
+      "message": "RUL rows=100, engines=100"
+    },
+    {
+      "name": "FD003: global_scaler.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: engine_scalers.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: global_scaler is MinMaxScaler instance",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: engine_scalers is non-empty dict",
+      "passed": true,
+      "message": "100 engines"
+    },
+    {
+      "name": "FD003: scaled output same row count as input",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: scaled features within [-0.05, 1.05] tolerance",
+      "passed": false,
+      "message": "min=-5.3810, max=5.7132"
+    },
+    {
+      "name": "FD003: window shape correct",
+      "passed": true,
+      "message": "got (100, 30, 16)"
+    },
+    {
+      "name": "FD003: no NaNs in windowed data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: all class labels in {0,1,2,3}",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: class boundaries match RUL thresholds",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: test file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\test_FD004.txt"
+    },
+    {
+      "name": "FD004: RUL file exists",
+      "passed": true,
+      "message": "C:\\Users\\Ishaan Nandoskar\\Downloads\\nasa_gan_turbo_fan_engine\\data\\raw\\RUL_FD004.txt"
+    },
+    {
+      "name": "FD004: test data loads",
+      "passed": true,
+      "message": "41214 rows"
+    },
+    {
+      "name": "FD004: no NaNs in raw test data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: has all FEATURE_COLS",
+      "passed": true,
+      "message": "missing: []"
+    },
+    {
+      "name": "FD004: RUL count matches engine count",
+      "passed": true,
+      "message": "RUL rows=248, engines=248"
+    },
+    {
+      "name": "FD004: global_scaler.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: engine_scalers.pkl exists",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: global_scaler is MinMaxScaler instance",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: engine_scalers is non-empty dict",
+      "passed": true,
+      "message": "249 engines"
+    },
+    {
+      "name": "FD004: scaled output same row count as input",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: scaled features within [-0.05, 1.05] tolerance",
+      "passed": false,
+      "message": "min=-0.0701, max=1.2149"
+    },
+    {
+      "name": "FD004: window shape correct",
+      "passed": true,
+      "message": "got (248, 30, 16)"
+    },
+    {
+      "name": "FD004: no NaNs in windowed data",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: all class labels in {0,1,2,3}",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: class boundaries match RUL thresholds",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "All subsets have same INPUT_DIM (16)",
+      "passed": true,
+      "message": "found dims: {16}"
+    },
+    {
+      "name": "FD001: has at least 1 test engine",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: has at least 1 test engine",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: has at least 1 test engine",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: has at least 1 test engine",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD001: all 4 classes present in test set or gracefully empty",
+      "passed": true,
+      "message": "distribution: {0: 33, 1: 34, 2: 26, 3: 7}"
+    },
+    {
+      "name": "FD002: all 4 classes present in test set or gracefully empty",
+      "passed": true,
+      "message": "distribution: {0: 92, 1: 79, 2: 66, 3: 22}"
+    },
+    {
+      "name": "FD003: all 4 classes present in test set or gracefully empty",
+      "passed": true,
+      "message": "distribution: {0: 32, 1: 39, 2: 23, 3: 6}"
+    },
+    {
+      "name": "FD004: all 4 classes present in test set or gracefully empty",
+      "passed": true,
+      "message": "distribution: {0: 100, 1: 68, 2: 66, 3: 14}"
+    },
+    {
+      "name": "FD001: s3 has non-zero variance after global scaling",
+      "passed": true,
+      "message": "std=0.1161"
+    },
+    {
+      "name": "FD002: s3 has non-zero variance after global scaling",
+      "passed": true,
+      "message": "std=0.2892"
+    },
+    {
+      "name": "FD003: s3 has non-zero variance after global scaling",
+      "passed": true,
+      "message": "std=0.1137"
+    },
+    {
+      "name": "FD004: s3 has non-zero variance after global scaling",
+      "passed": true,
+      "message": "std=0.2868"
+    },
+    {
+      "name": "FD001: op3 absent from processed columns",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD002: op3 absent from processed columns",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD003: op3 absent from processed columns",
+      "passed": true,
+      "message": ""
+    },
+    {
+      "name": "FD004: op3 absent from processed columns",
+      "passed": true,
+      "message": ""
+    }
+  ]
+}

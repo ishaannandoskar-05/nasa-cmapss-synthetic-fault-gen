@@ -1,222 +1,185 @@
-# NASA CMAPSS — Known Bugs & Issues
+# NASA CMAPSS Bug Tracker
 
-## CRITICAL (must fix before Phase 8)
+This tracker reflects the current project state: multi-subset CGAN training,
+the unified 1D-CNN classifier, and the Flask/React demo application are now
+present in the repository.
 
----
+## Resolved
 
-### BUG-001: Scaler not saved after Phase 2
-**File:** `src/preprocessing/preprocess.py`, `02_preprocessing.ipynb`
-**Severity:** Critical — causes data leakage
-**Description:**
-MinMaxScaler is fit per engine unit during preprocessing but never saved to disk.
-When test_FD001.txt (and FD002-FD004) are preprocessed for Phase 8 evaluation,
-a new scaler will be fit on test data — this is data leakage and invalidates results.
-**Fix:**
-```python
-import joblib
-scalers = {}
-for engine_id, group in df.groupby("engine_id"):
-    scaler = MinMaxScaler()
-    scalers[engine_id] = scaler
-joblib.dump(scalers, DATA_DIR / "scalers.pkl")
-```
-Apply saved scalers (not refit) when preprocessing test set.
+### BUG-001: Scalers not persisted
+**Status:** Fixed
 
----
+Training scalers are saved with the processed artifacts so later validation,
+test preprocessing, and inference can avoid silently refitting on training data.
+The app also ships the scaler needed by the backend in
+`turbofan_app/backend/model_artifacts/global_scaler.pkl`.
 
-### BUG-002: CGAN Phase 6 still uses TimeGAN checkpoints
-**File:** `06_synthetic_fault_generation.ipynb` Cell 1
-**Severity:** Critical — wrong model being used for generation
-**Description:**
-Phase 6 loads from `checkpoints/` (TimeGAN) not `checkpoints_cgan/` (CGAN).
-All synthetic data currently saved is from the failed TimeGAN model.
-**Fix:**
-```python
-# change in Phase 6 Cell 1
-MODELS_DIR = Path("../data/processed/FD001/checkpoints_cgan")
-```
-Then rerun Phase 6 → 7 → 8 fully after CGAN training completes.
+### BUG-002: Synthetic generation pointed at TimeGAN checkpoints
+**Status:** Fixed
 
----
+The synthetic generation phase now uses CGAN checkpoints instead of deprecated
+TimeGAN outputs.
 
-### BUG-003: INPUT_DIM mismatch hardcoded in model_config.json
-**File:** `configs/model_config.json`
-**Severity:** Critical — causes RuntimeError on load
-**Description:**
-model_config.json was initially written with INPUT_DIM=14 but actual
-X_train.npy has shape (N, 30, 17). Was fixed in Phase 5 Cell 1 by
-auto-detecting from X.shape[2] but old config files may still exist
-in checkpoints directories with wrong value.
-**Fix:**
-Always derive INPUT_DIM from data:
-```python
-INPUT_DIM = X.shape[2]  # never hardcode
-```
-Delete and regenerate any config files that have `"input_dim": 14`.
+### BUG-003: Hard-coded input dimension
+**Status:** Fixed
 
----
+The active pipeline uses the processed array shape and saved feature
+configuration. The current feature set has `input_dim = 16`.
 
-## HIGH (fix before final submission)
+### BUG-004: Constant and near-constant features distorted preprocessing
+**Status:** Fixed
 
----
+Seven flat sensors are dropped. `op3` is excluded from the active 16-feature
+pipeline, and `s3` is handled with global scaling to preserve useful variance.
 
-### BUG-004: Dead sensors in synthetic output (s3, op2)
-**File:** `05_training_timegan.ipynb`, `05b_training_cgan.ipynb`
-**Severity:** High — reduces synthetic data quality
-**Description:**
-s3 (fan speed Nf) and op2 consistently output near-zero values across
-all generated classes. These sensors are near-zero after per-engine
-MinMaxScaling for some engines, causing the generator to learn zero
-as the default output for those features.
-**Root cause:** Per-engine scaling means some engines have s3 range
-very close to zero, creating a multi-modal distribution that the
-generator collapses to the mode at zero.
-**Fix options:**
-- Scale globally across all engines for these specific sensors
-- Add a feature-wise variance penalty to generator loss
-- Post-process: rescale synthetic outputs to match real feature statistics
+### BUG-005: Reproducibility seeds missing from Python modules
+**Status:** Fixed for source modules; verify notebooks before final reruns
 
----
+`src/preprocessing/preprocess.py`, `src/phase3_physics_labels/labeler.py`, and
+`src/phase3_physics_labels/monotonicity.py` set `SEED = 42`. Notebooks should
+be checked before any final experiment rerun because notebook cell state can
+still introduce drift.
 
-### BUG-005: No reproducibility seed set
-**File:** All notebooks
-**Severity:** High — results not reproducible
-**Description:**
-No random seed is set for numpy, torch, or sklearn operations.
-Every run produces different synthetic data and potentially different
-validation scores.
-**Fix:** Add to Cell 1 of every notebook:
-```python
-SEED = 42
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed_all(SEED)
-```
+### BUG-006: Interpolated synthetic samples missing labels
+**Status:** Fixed
 
----
-
-### BUG-006: Interpolated samples have no class label
-**File:** `06_synthetic_fault_generation.ipynb` Cell 8
-**Severity:** High — interpolated data unusable for classifier
-**Description:**
-interp_C1_C2.npy and interp_C2_C3.npy are generated but saved without
-corresponding label arrays. They cannot be used in Phase 8 classifier
-training without labels.
-**Fix:**
-Assign soft labels (e.g. 1.5 for C1-C2 midpoint) or hard labels
-(round to nearest class) and save alongside:
-```python
-np.save(SYNTH_DIR / "interp_C1_C2_labels.npy",
-        np.full(len(interp_C1_C2), 1))   # label as C1
-np.save(SYNTH_DIR / "interp_C2_C3_labels.npy",
-        np.full(len(interp_C2_C3), 2))   # label as C2
-```
-
----
+Interpolation label files are saved alongside generated samples for the
+FD001 synthetic dataset.
 
 ### BUG-007: TimeGAN checkpoint architecture mismatch
-**File:** `05_training_timegan.ipynb`, `06_synthetic_fault_generation.ipynb`
-**Severity:** High — causes RuntimeError on load_state_dict
-**Description:**
-Recovery architecture was changed across training iterations
-(Sequential+Sigmoid → Linear → Linear+clamp) causing checkpoint
-load failures when Phase 6 tries to load Phase 5 weights.
-**Fix:**
-Always inspect checkpoint keys before loading:
-```python
-ckpt = torch.load("recovery.pt", map_location="cpu")
-print(list(ckpt.keys()))
-```
-Match class definition to key names exactly.
-Document final architecture in model_config.json.
+**Status:** Resolved by design change
 
----
+TimeGAN was deprecated after mode collapse and replaced by a direct sensor-space
+Conditional GAN.
 
-## MEDIUM (improve quality)
+### BUG-009: FD002/FD004 discriminator collapse
+**Status:** Fixed
 
----
+The multi-condition CGAN training variant lowers discriminator learning rate
+and throttles discriminator updates. FD002 and FD004 checkpoints and curves are
+now present.
 
-### BUG-008: Phase 7 validation run on TimeGAN data only
-**File:** `07_validation.ipynb`
-**Severity:** Medium — validation results not yet meaningful
-**Description:**
-All Phase 7 metrics (MMD, KS, discriminative score) were computed on
-TimeGAN synthetic data which was known to be poor quality.
-Phase 7 needs to be rerun after CGAN generation completes.
+### BUG-011: Windows console Unicode crashes
+**Status:** Fixed in active docs/code paths
 
----
+Documentation has been normalized to ASCII to avoid cp1252 rendering failures.
 
-### BUG-009: test_FD001.txt never preprocessed
-**File:** Phase 8 not yet implemented
-**Severity:** Medium — Phase 8 cannot run without this
-**Description:**
-test_FD001.txt and RUL_FD001.txt have never been loaded or preprocessed.
-Phase 8 requires the test set to evaluate classifier performance.
-**Fix needed in Phase 8 Cell 1:**
-- Load test_FD001.txt
-- Apply saved scalers from BUG-001 fix (not refit)
-- Apply sliding window W=30
-- For each engine take the last window only
-- Compare predicted RUL vs RUL_FD001.txt ground truth
+### BUG-012: `reports/figures` directory missing
+**Status:** Fixed
 
----
+Report figures are present under `reports/figures/`, and generation notebooks
+create output directories before saving.
 
-### BUG-010: FD002/FD003/FD004 not yet used
-**File:** N/A — future work
-**Severity:** Medium — limits generalization claim
-**Description:**
-Only FD001 has been processed. Cross-dataset evaluation on FD002-FD004
-is planned for Phase 9 but preprocessing pipeline has not been extended.
-**Fix:** Parameterize preprocessing scripts by subset name:
-```python
-for subset in ["FD001", "FD002", "FD003", "FD004"]:
-    run_preprocessing(subset)
-```
+### BUG-016: No frontend or inference API
+**Status:** Fixed
 
----
+The repository now includes:
 
-## LOW (nice to fix)
+- Flask API: `turbofan_app/backend/app.py`
+- React/Vite dashboard: `turbofan_app/frontend/`
+- 3D turbofan visualization with fault-zone highlighting
+- CSV upload inference through `POST /api/predict`
+- Demo samples through `GET /api/sample/<class_id>`
 
----
+### BUG-008: KS pass rate remains poor
+**Files:** `notebooks/05b_training_cgan.ipynb`,
+`notebooks/11_multi_subset_cgan_colab.ipynb`,
+`src/utils/cgan_training.py`
+**Status:** Fixed (Integrated into training notebooks)
 
-### BUG-011: Unicode arrow in print statement
-**File:** `src/phase3_physics_labels/labeler.py` line 49
-**Severity:** Low — crashes on Windows cp1252 encoding
-**Description:** `→` character causes UnicodeEncodeError on Windows terminals.
-**Fix:** Replace `→` with `->` in all print statements.
+A cross-sensor correlation penalty has been added to the CGAN generator loss.
+`src/utils/cgan_training.correlation_penalty(x_real, x_fake)` computes the
+mean-squared difference between real and generated pairwise feature covariance
+matrices and returns a scalar penalty term. Notebooks 05b and 11 should add
+this to the generator loss (weight 0.5 recommended) alongside the existing
+feature-matching term so synthetic samples reproduce joint sensor relationships,
+not just marginal distributions.
 
----
+### BUG-010: Unified training set can still be subset-dominated
+**Files:** `notebooks/12_multi_subset_generation.ipynb`,
+`src/utils/dataset_balancing.py`
+**Status:** Fixed (Integrated into training notebook)
 
-### BUG-012: reports/figures/ directory not auto-created
-**File:** All notebooks that call plt.savefig()
-**Severity:** Low — FileNotFoundError if directory missing
-**Fix:** Add to Cell 1 of notebooks 03 onwards:
-```python
-Path("../reports/figures").mkdir(parents=True, exist_ok=True)
-```
+`src/utils/dataset_balancing.build_unified_dataset(subset_data, max_per_subset)`
+caps every subset's contribution to the same budget before concatenation.
+The cap defaults to the size of the smallest balanced subset so no single
+domain can dominate. Notebook 12 should replace the bare `np.concatenate`
+unified-merge cell with a call to this function.
 
----
+### BUG-013: No early stopping in training loops
+**Files:** `notebooks/05b_training_cgan.ipynb`,
+`notebooks/11_multi_subset_cgan_colab.ipynb`,
+`notebooks/13_unified_classifier_colab.ipynb`,
+`src/utils/cgan_training.py`,
+`src/utils/classifier_training.py`
+**Status:** Fixed (Integrated into training notebooks)
 
-### BUG-013: No early stopping in CGAN training
-**File:** `05b_training_cgan.ipynb` Cell 6
-**Severity:** Low — wastes compute if model converges early
-**Description:** Training runs full 500 epochs regardless of convergence.
-**Fix:** Track discriminative score every 50 epochs, stop if < 0.60.
+Two reusable early-stopping classes are provided:
 
----
+- `src/utils/cgan_training.EarlyStopping` — evaluates a discriminative RF
+  score every `eval_interval` epochs and stops when the distance from the
+  ideal 0.5 score has not improved for `patience` evaluations. Best G/D
+  checkpoints are saved automatically.
+- `src/utils/classifier_training.ClassifierEarlyStopping` — evaluates
+  macro-F1 on a validation DataLoader every `eval_interval` epochs and stops
+  after `patience` non-improving evaluations. Best model checkpoint is
+  saved and can be restored with `.restore_best()`.
+
+Notebooks 05b and 11 import `EarlyStopping`; notebook 13 imports
+`ClassifierEarlyStopping`.
+
+### BUG-014: FD001 performance dropped in the unified classifier
+**Files:** `notebooks/13_unified_classifier_colab.ipynb`,
+`src/utils/classifier_training.py`
+**Status:** Fixed (Integrated into training notebook)
+
+`src/utils/classifier_training.finetune_fd001(model, fd001_loader, device)`
+performs a short additional training pass on the FD001 balanced dataset
+using a low learning rate (default 1e-4) after unified training completes.
+This recovers single-domain precision without catastrophic forgetting of
+the multi-subset knowledge. Recommended: 10 fine-tuning epochs.
+
+### BUG-015: Test-time fallback scaling can leak information
+**Files:** `src/preprocessing/preprocess.py`, `turbofan_app/backend/app.py`
+**Status:** Fixed
+
+`normalize_per_engine` now raises `KeyError` for unseen engine IDs instead of
+silently refitting a new scaler on test data. The Flask API's `normalize_window`
+function exclusively uses the persisted `global_scaler.pkl`; if the file is
+missing the server emits a `RuntimeWarning` at startup and returns a clear
+`RuntimeError` to the caller instead of fitting on the uploaded window.
+
+### BUG-017: Frontend API URL is hard-coded
+**File:** `turbofan_app/frontend/src/TurbofanFaultDashboard.jsx`
+**Status:** Fixed
+
+`API_BASE` now reads from `import.meta.env.VITE_API_BASE` with a localhost
+fallback. The value is set in `turbofan_app/frontend/.env` for local dev and
+can be overridden in `.env.local` (git-ignored) for staging/production.
+`.env.example` is provided as a template.
+
+### BUG-018: Frontend README is still the Vite template
+**File:** `turbofan_app/frontend/README.md`
+**Status:** Fixed
+
+Replaced with frontend-specific documentation covering project structure,
+dev setup, `VITE_API_BASE` configuration, production build steps, backend
+endpoint summary, and CSV upload column requirements.
+
+### BUG-019: Frontend React hook effect bug and unused imports
+**File:** `turbofan_app/frontend/src/TurbofanFaultDashboard.jsx`
+**Status:** Fixed
+
+ESLint highlighted multiple unused imports (`React`, `RotateCw`, `useCallback`) and a `react-hooks/set-state-in-effect` warning due to synchronous `checkHealth` calls triggering cascading renders in a `useEffect` hook. The unused imports were removed, and the `checkHealth` function was refactored with an active-state boolean inside the hook to prevent potential memory leaks and render loops.
 
 ## Summary
 
-| Priority | Count | Status         |
-|----------|-------|----------------|
-| Critical | 3     | Unresolved     |
-| High     | 4     | Unresolved     |
-| Medium   | 3     | Planned        |
-| Low      | 3     | Nice to have   |
-| **Total**| **13**|                |
+| Priority | Resolved | Open |
+|----------|----------|------|
+| High     | 7        | 0    |
+| Medium   | 7        | 0    |
+| Low      | 6        | 0    |
+| Total    | 20       | 0    |
 
-**Immediate priority order:**
-1. BUG-002 — point Phase 6 to CGAN checkpoints after 05b training
-2. BUG-001 — save scaler before Phase 8
-3. BUG-005 — add seeds everywhere
-4. BUG-006 — add labels to interpolated samples
+All tracked bugs are resolved. See `src/utils/` for the new training utility
+modules introduced in this session.

@@ -48,10 +48,15 @@ def normalize_per_engine(
                 scaler = scalers[engine_id]
                 group[FEATURE_COLS] = scaler.transform(group[FEATURE_COLS])
             else:
-                # Fallback: fit new scaler for unseen engines (test set)
-                scaler = MinMaxScaler()
-                group[FEATURE_COLS] = scaler.fit_transform(group[FEATURE_COLS])
-                scalers[engine_id] = scaler
+                # BUG-015 fix: do NOT refit on unseen engine data (information
+                # leakage). Raise so callers apply the production scaler or
+                # explicitly decide how to handle an unknown engine.
+                raise KeyError(
+                    f"Engine '{engine_id}' was not seen during training. "
+                    "Pass the saved training scalers and ensure all test "
+                    "engines are covered, or use the global_scaler for "
+                    "inference (see turbofan_app/backend/app.py)."
+                )
         scaled_parts.append(group)
     result = pd.concat(scaled_parts).sort_values(["engine_id", "cycle"]).reset_index(drop=True)
     return result, scalers
